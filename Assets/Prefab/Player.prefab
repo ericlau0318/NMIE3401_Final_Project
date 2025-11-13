@@ -211,8 +211,8 @@ MonoBehaviour:
   currentHealth: 0
   bullet: {fileID: 6950470530523333191, guid: 85bed1643c6524043a544333a266bf3c, type: 3}
   ShootPoint: {fileID: 2213646044083232062}
-  ShootRate: 0
-  nextShootTime: 0.5
+  CD: 0.5
+  gunTransform: {fileID: 4216591829264795375}
 --- !u!1 &7705204597533958929
 GameObject:
   m_ObjectHideFlags: 0

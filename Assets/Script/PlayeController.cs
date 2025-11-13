@@ -8,23 +8,21 @@ public class PlayerController : MonoBehaviour
     public float moveSpeed = 3f;
     public float jumpForce = 5f;
     public bool flipOnMouseLeft = true;
-
     public int maxHealth = 3;
     public int currentHealth;
-
     public GameObject bullet;
     public Transform ShootPoint;
-    public float ShootRate=0.2f;
-    public float nextShootTime = 0f;
+    public float CD = 0.5f;
+    public Transform gunTransform;
 
     private Vector3 mouseScreenPos;
     private Vector3 mouseWorldPos;
-
     private SpriteRenderer spriteRenderer;
     private Camera playerCamera;
     private Rigidbody2D rb;
     private Vector2 moveInput;
     private bool isGrounded;
+    private float nextFireTime = 0f;
 
     void Start()
     {
@@ -33,24 +31,43 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         currentHealth = maxHealth;
     }
+
     void Update()
     {
         Vector2 velocity = rb.velocity;
-        velocity.x = moveInput.x * moveSpeed;  
+        velocity.x = moveInput.x * moveSpeed;
         rb.velocity = velocity;
 
         mouseScreenPos = Input.mousePosition;
+        mouseScreenPos.z = Mathf.Abs(playerCamera.transform.position.z);
         mouseWorldPos = playerCamera.ScreenToWorldPoint(mouseScreenPos);
+
         bool shouldFlip = mouseWorldPos.x < transform.position.x;
         spriteRenderer.flipX = flipOnMouseLeft ? shouldFlip : !shouldFlip;
-    }
 
-    void OnMove(InputValue value){
+        RotateGunToMouse(mouseWorldPos);
+    }
+    
+    void RotateGunToMouse(Vector3 mouseWorldPos)
+    {
+        if (gunTransform == null) return;
+
+        // 計算槍口到鼠標的方向
+        Vector2 directionFromGun = (mouseWorldPos - gunTransform.position);
+
+        // 轉換成角度（弧度 → 度數）
+        float angle = Mathf.Atan2(directionFromGun.y, directionFromGun.x) * Mathf.Rad2Deg;
+
+        // 旋轉槍（Z軸旋轉，2D）
+        gunTransform.rotation = Quaternion.Euler(0f, 0f, angle);
+    }
+    void OnMove(InputValue value)
+    {
         moveInput = value.Get<Vector2>();
-        //Debug.Log("Move Input: " + moveInput); 
     }
 
-    void OnJump(){
+    void OnJump()
+    {
         if (isGrounded)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
@@ -60,18 +77,20 @@ public class PlayerController : MonoBehaviour
 
     void OnShoot()
     {
-        if (Time.time < nextShootTime || playerCamera == null) return;
-        
-            mouseScreenPos = Mouse.current.position.ReadValue();
-            mouseScreenPos.z = Mathf.Abs(playerCamera.transform.position.z);
-            mouseWorldPos = playerCamera.ScreenToWorldPoint(mouseScreenPos);
-            Vector2 direction = (mouseWorldPos - ShootPoint.position).normalized;
+        if (Time.time < nextFireTime) return;
 
-            GameObject bulletPrefab = Instantiate(bullet, ShootPoint.position, Quaternion.identity);
-            bulletPrefab.GetComponent<Bullet>().SetVelocity(direction);
+        Vector3 mouseScreenPos = Mouse.current.position.ReadValue();
+        mouseScreenPos.z = Mathf.Abs(playerCamera.transform.position.z);
+        Vector3 mouseWorldPos = playerCamera.ScreenToWorldPoint(mouseScreenPos);
 
-        nextShootTime = Time.time + ShootRate;
-       
+        Vector2 direction = ((Vector2)mouseWorldPos - (Vector2)ShootPoint.position).normalized;
+
+        GameObject bulletObj = Instantiate(bullet, ShootPoint.position, Quaternion.identity);
+        Bullet bulletScript = bulletObj.GetComponent<Bullet>();
+        if (bulletScript != null)
+            bulletScript.SetVelocity(direction);
+
+        nextFireTime = Time.time + CD;
     }
 
     public void TakeDamage(int damage)
@@ -79,7 +98,7 @@ public class PlayerController : MonoBehaviour
         currentHealth -= damage;
         if (currentHealth <= 0)
         {
-            
+            // 死亡邏輯
         }
     }
 
