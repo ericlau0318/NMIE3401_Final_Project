@@ -8,6 +8,7 @@ public class Bullet : MonoBehaviour
     public float lifetime = 3f;
     public int damage = 1;
 
+    private GameObject shooter;
     private Rigidbody2D rb;
 
     void Awake()
@@ -34,13 +35,26 @@ public class Bullet : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player") && !other.transform.IsChildOf(transform.parent))
+        if (other.CompareTag("Player") && other.gameObject != gameObject)
         {
-            PlayerController health = other.GetComponent<PlayerController>();
-            if (health != null)
-                health.TakeDamage(damage);
+            if (other.CompareTag("Player") && other.gameObject == shooter)
+            {
+                return; 
+            }
 
-            Destroy(gameObject);
+            if (other.CompareTag("Player"))
+            {
+                PlayerController health = other.GetComponent<PlayerController>();
+                if (health != null)
+                    health.TakeDamage(damage);
+
+                Destroy(gameObject);
+            }
         }
+    }
+
+    public void SetShooter(GameObject owner)
+    {
+        shooter = owner;
     }
 }

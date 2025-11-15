@@ -52,13 +52,10 @@ public class PlayerController : MonoBehaviour
     {
         if (gunTransform == null) return;
 
-        // 計算槍口到鼠標的方向
         Vector2 directionFromGun = (mouseWorldPos - gunTransform.position);
 
-        // 轉換成角度（弧度 → 度數）
         float angle = Mathf.Atan2(directionFromGun.y, directionFromGun.x) * Mathf.Rad2Deg;
 
-        // 旋轉槍（Z軸旋轉，2D）
         gunTransform.rotation = Quaternion.Euler(0f, 0f, angle);
     }
     void OnMove(InputValue value)
@@ -88,8 +85,10 @@ public class PlayerController : MonoBehaviour
         GameObject bulletObj = Instantiate(bullet, ShootPoint.position, Quaternion.identity);
         Bullet bulletScript = bulletObj.GetComponent<Bullet>();
         if (bulletScript != null)
+        {
             bulletScript.SetVelocity(direction);
-
+            bulletScript.SetShooter(gameObject);
+        }
         nextFireTime = Time.time + CD;
     }
 
@@ -99,6 +98,7 @@ public class PlayerController : MonoBehaviour
         if (currentHealth <= 0)
         {
             // 死亡邏輯
+            Debug.Log("player die");
         }
     }
 
