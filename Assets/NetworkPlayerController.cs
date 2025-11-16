@@ -24,15 +24,6 @@ public class NetworkPlayerController : NetworkBehaviour
 
         var move = pActions.Player.Move.ReadValue<Vector2>();
         finalMove = new Vector3(move.x, 0,0) * Time.deltaTime * moveSpeed;
-        Moveme(finalMove);
-    }
-
-    public void Moveme(Vector2 move)
-    {
         transform.Translate(move, Space.World);
-        if(move != Vector2.zero)
-        {
-            //transform.rotation = Quaternion.LookRotation(new Vector3(move.x, 0f, 0f));
-        }
     }
 }
