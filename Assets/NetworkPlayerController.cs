@@ -19,12 +19,25 @@ public class NetworkPlayerController : NetworkBehaviour
     [SerializeField] Transform graphicsTransform;
     [SerializeField] private SpriteRenderer gunSpriteRenderer;
 
-    private NetworkVariable<bool> isGunFlipped = new NetworkVariable<bool>(false);
+    private NetworkVariable<bool> isGunFlipped = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner);
     private Vector2 finalMove;
     private Rigidbody2D rb;
     private bool isGrounded;
     private float nextFireTime;
     private Camera mainCam;
+    void Awake()
+    {
+        isGunFlipped.OnValueChanged += OnGunFlipChanged;
+    }
+
+    private void OnGunFlipChanged(bool previous, bool current)
+    {
+        if (gunSpriteRenderer != null)
+            gunSpriteRenderer.flipY = current;
+    }
     void Start()
     {
         pActions = new PlayerInputAction();
@@ -55,24 +68,18 @@ public class NetworkPlayerController : NetworkBehaviour
 
         Vector3 direction = (mouseWorldPos - gunTransform.position).normalized;
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-
         bool facingLeft = mouseWorldPos.x < transform.position.x;
-        // 槍永遠正確轉向（不加180！因為我們不用父物件翻轉了）
+
+        // 1. 槍轉向（360° 完全正確）
         gunTransform.rotation = Quaternion.Euler(0f, 0f, angle);
 
-        // 判斷面向
-
-
-        // 角色視覺翻轉（Graphics 子物件）
+        // 2. 角色視覺翻轉 → 這行會被 Player 根物件的 NetworkTransform 同步 Scale X
         graphicsTransform.localScale = new Vector3(facingLeft ? -1f : 1f, 1f, 1f);
 
-        if (IsOwner)
-        {
-            isGunFlipped.Value = facingLeft;  // Owner 決定翻轉
-        }
+        // 3. 槍上下翻轉 → 只由 Owner 寫入 NetworkVariable
+        isGunFlipped.Value = facingLeft;
 
-        gunSpriteRenderer.flipY = isGunFlipped.Value;
-
+        // 射擊
         if (Mouse.current.leftButton.isPressed && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
@@ -92,6 +99,8 @@ public class NetworkPlayerController : NetworkBehaviour
         if (IsOwner)
         {
             mainCam = GetComponentInChildren<Camera>();
+
+
             if (mainCam != null)
             {
                 mainCam.enabled = true;
