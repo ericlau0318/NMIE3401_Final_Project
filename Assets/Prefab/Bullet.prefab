@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 3682775418525939462}
   - component: {fileID: 7977897378068946854}
   - component: {fileID: 7449534701553198330}
+  - component: {fileID: 2808321878507172423}
   - component: {fileID: 3106885714587268658}
   - component: {fileID: 1471959783253371612}
   - component: {fileID: 3352621854440255978}
@@ -155,6 +156,18 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 0.155, y: 0.155}
   m_EdgeRadius: 0
+--- !u!114 &2808321878507172423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5624585081352529592}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80d7c879794dfda4687da0e400131852, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!50 &3106885714587268658
 Rigidbody2D:
   serializedVersion: 4
@@ -212,10 +225,10 @@ MonoBehaviour:
   UseUnreliableDeltas: 0
   SyncPositionX: 1
   SyncPositionY: 1
-  SyncPositionZ: 1
-  SyncRotAngleX: 1
-  SyncRotAngleY: 1
-  SyncRotAngleZ: 1
+  SyncPositionZ: 0
+  SyncRotAngleX: 0
+  SyncRotAngleY: 0
+  SyncRotAngleZ: 0
   SyncScaleX: 1
   SyncScaleY: 1
   SyncScaleZ: 1
