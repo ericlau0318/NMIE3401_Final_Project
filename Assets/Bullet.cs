@@ -11,6 +11,13 @@ public class Bullet : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        // 確保子彈的渲染器始終啟用（所有客戶端執行）
+        var renderer = GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = true;
+        }
+        
         if (!IsServer) return;
 
         GetComponent<Rigidbody2D>().velocity = transform.right * speed;
@@ -32,11 +39,20 @@ public class Bullet : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        // 檢查是否擊中玩家
+        var player = other.GetComponent<NetworkPlayerController>();
+        if (player != null)
+        {
+            // 對玩家造成傷害
+            player.TakeDamageServerRpc(damage);
+            Debug.Log($"子彈擊中玩家，造成 {damage} 點傷害");
+        }
+
+        // 銷毀子彈
         if (NetworkObject != null && NetworkObject.IsSpawned)
         {
             Debug.Log("hit");
             NetworkObject.Despawn();
-
         }
     }
 
