@@ -288,10 +288,15 @@ MonoBehaviour:
   fireRate: 0.2
   graphicsTransform: {fileID: 5252215532058895220}
   gunSpriteRenderer: {fileID: 1254862650987172554}
+  hostPlayerSprite: {fileID: 21300000, guid: a8f1c183a0b489a469bb28ed29eea98a, type: 3}
+  clientPlayerSprite: {fileID: 21300000, guid: 8820dddc3015ea14d96faf6240c4c47f, type: 3}
   maxHealth: 3
   respawnDelay: 3
   youWinText: {fileID: 3808675407562862742}
   youLoseText: {fileID: 1016430948761534931}
+  healthImage1: {fileID: 2174770870256081921}
+  healthImage2: {fileID: 9213699718875817852}
+  healthImage3: {fileID: 5988554617348291809}
 --- !u!114 &2940179966991435800
 MonoBehaviour:
   m_ObjectHideFlags: 0

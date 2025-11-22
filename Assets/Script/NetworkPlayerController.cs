@@ -19,14 +19,23 @@ public class NetworkPlayerController : NetworkBehaviour
     [SerializeField] Transform graphicsTransform;
     [SerializeField] private SpriteRenderer gunSpriteRenderer;
     
-    [SerializeField] private float maxHealth = 100f;
+    // 角色圖像（Host和Client使用不同的Sprite）
+    [SerializeField] private Sprite hostPlayerSprite;
+    [SerializeField] private Sprite clientPlayerSprite;
+    
+    [SerializeField] private float maxHealth = 3f;
     [SerializeField] private float respawnDelay = 3f;
     
     [SerializeField] private GameObject youWinText;
     [SerializeField] private GameObject youLoseText;
     
+    // 愛心圖片引用
+    [SerializeField] private GameObject healthImage1; // Health
+    [SerializeField] private GameObject healthImage2; // Health(1)
+    [SerializeField] private GameObject healthImage3; // Health(2)
+    
     private NetworkVariable<float> currentHealth = new NetworkVariable<float>(
-        100f,
+        3f,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
     
@@ -40,6 +49,12 @@ public class NetworkPlayerController : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Owner);
     
+    // 玩家類型：true表示Host，false表示Client
+    private NetworkVariable<bool> isHostPlayer = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+    
     private List<SpriteRenderer> cachedRenderers = new List<SpriteRenderer>();
     private SpriteRenderer graphicsSpriteRenderer; // Graphics子物件的SpriteRenderer
     
@@ -51,10 +66,20 @@ public class NetworkPlayerController : NetworkBehaviour
     private float lastUIUpdateTime = 0f;
     private const float UIUpdateInterval = 0.1f; // 每0.1秒檢查一次UI
     
+    // 無敵時間相關
+    private NetworkVariable<float> invincibilityEndTime = new NetworkVariable<float>(
+        0f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+    private const float invincibilityDuration = 0.4f; // 無敵時間0.4秒
+    private Coroutine invincibilityFlashCoroutine; // 無敵閃爍協程
+    
     void Awake()
     {
         isGunFlipped.OnValueChanged += OnGunFlipChanged;
         isDead.OnValueChanged += OnDeathStatusChanged;
+        currentHealth.OnValueChanged += OnHealthChanged;
+        isHostPlayer.OnValueChanged += OnPlayerTypeChanged;
         
         // 查找Graphics子物件的SpriteRenderer
         if (graphicsTransform != null)
@@ -79,6 +104,18 @@ public class NetworkPlayerController : NetworkBehaviour
         // 當任何玩家的死亡狀態改變時，更新所有本地玩家的UI
         // 需要在所有客戶端上執行，所以不檢查 IsOwner
         UpdateAllPlayersWinLoseUI();
+    }
+    
+    private void OnHealthChanged(float previous, float current)
+    {
+        // 當生命值改變時，更新愛心顯示（所有客戶端都需要更新）
+        UpdateHealthUI();
+    }
+    
+    private void OnPlayerTypeChanged(bool previous, bool current)
+    {
+        // 當玩家類型改變時，更新角色圖像（所有客戶端都需要更新）
+        SetPlayerSprite();
     }
     
     private void UpdateAllPlayersWinLoseUI()
@@ -169,7 +206,14 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             currentHealth.Value = maxHealth;
             isDead.Value = false;
+            invincibilityEndTime.Value = 0f;
+            
+            // 設置玩家類型：OwnerClientId == 0 表示Host
+            isHostPlayer.Value = (OwnerClientId == 0);
         }
+        
+        // 初始化愛心UI（所有客戶端都需要）
+        InitializeHealthUI();
     }
     
 
@@ -243,6 +287,10 @@ public class NetworkPlayerController : NetworkBehaviour
             }
         }
         
+        // 根據玩家身份設置不同的角色圖像
+        // 使用協程延遲一下，確保NetworkVariable已經初始化
+        StartCoroutine(SetPlayerSpriteDelayed());
+        
         if (IsOwner)
         {
             mainCam = GetComponentInChildren<Camera>();
@@ -298,6 +346,10 @@ public class NetworkPlayerController : NetworkBehaviour
                 }
             }
         }
+        
+        // 初始化愛心UI（所有客戶端都需要）
+        InitializeHealthUI();
+        UpdateHealthUI();
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -305,19 +357,31 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         if (isDead.Value) return;
         
-        float previousHealth = currentHealth.Value;
-        currentHealth.Value = Mathf.Max(0, currentHealth.Value - damage);
+        // 檢查是否在無敵時間內
+        if (Time.time < invincibilityEndTime.Value)
+        {
+            return; // 無敵時間內，不受到傷害
+        }
         
-        // 如果受到傷害，通知所有客戶端顯示紅色閃爍效果
+        float previousHealth = currentHealth.Value;
+        // 每次傷害減少1點生命值（一個愛心）
+        currentHealth.Value = Mathf.Max(0, currentHealth.Value - 1f);
+        
+        // 如果受到傷害，啟動無敵時間並通知所有客戶端顯示閃爍效果
         if (currentHealth.Value < previousHealth)
         {
-            FlashRedClientRpc();
+            // 設置無敵時間結束時間
+            invincibilityEndTime.Value = Time.time + invincibilityDuration;
+            
+            // 通知所有客戶端開始無敵閃爍效果
+            StartInvincibilityFlashClientRpc();
         }
         
         if (currentHealth.Value <= 0)
         {
             isDead.Value = true;
-            
+            // 停止無敵閃爍（如果還在運行）
+            StopInvincibilityFlashClientRpc();
 
             if (rb != null)
             {
@@ -336,13 +400,49 @@ public class NetworkPlayerController : NetworkBehaviour
     }
     
     [ClientRpc]
-    private void FlashRedClientRpc()
+    private void StartInvincibilityFlashClientRpc()
     {
-        // 在所有客戶端執行紅色閃爍效果
-        StartCoroutine(FlashRedCoroutine());
+        // 在所有客戶端執行無敵閃爍效果
+        // 如果已經有閃爍協程在運行，先停止它
+        if (invincibilityFlashCoroutine != null)
+        {
+            StopCoroutine(invincibilityFlashCoroutine);
+        }
+        invincibilityFlashCoroutine = StartCoroutine(InvincibilityFlashCoroutine());
     }
     
-    private IEnumerator FlashRedCoroutine()
+    [ClientRpc]
+    private void StopInvincibilityFlashClientRpc()
+    {
+        // 停止無敵閃爍效果並恢復原始顏色
+        if (invincibilityFlashCoroutine != null)
+        {
+            StopCoroutine(invincibilityFlashCoroutine);
+            invincibilityFlashCoroutine = null;
+        }
+        
+        // 恢復原始顏色
+        // 如果還沒有找到Graphics的SpriteRenderer，嘗試查找
+        if (graphicsSpriteRenderer == null)
+        {
+            if (graphicsTransform != null)
+            {
+                graphicsSpriteRenderer = graphicsTransform.GetComponent<SpriteRenderer>();
+                if (graphicsSpriteRenderer == null)
+                {
+                    graphicsSpriteRenderer = graphicsTransform.GetComponentInChildren<SpriteRenderer>();
+                }
+            }
+        }
+        
+        if (graphicsSpriteRenderer != null)
+        {
+            Color currentColor = graphicsSpriteRenderer.color;
+            graphicsSpriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 1f);
+        }
+    }
+    
+    private IEnumerator InvincibilityFlashCoroutine()
     {
         // 如果還沒有找到Graphics的SpriteRenderer，嘗試查找
         if (graphicsSpriteRenderer == null)
@@ -365,15 +465,67 @@ public class NetworkPlayerController : NetworkBehaviour
         
         // 保存原始顏色
         Color originalColor = graphicsSpriteRenderer.color;
+        float startTime = Time.time;
+        float endTime = startTime + invincibilityDuration;
         
-        // 設置為紅色 (FF0000 = 255, 0, 0)
-        graphicsSpriteRenderer.color = new Color(1f, 0f, 0f, originalColor.a);
+        // 在無敵時間內循環閃爍
+        while (Time.time < endTime)
+        {
+            float remainingTime = endTime - Time.time;
+            float cycleTime = Time.time - startTime;
+            
+            // 每個循環是0.2秒（0.1秒從255到0，0.1秒從0到255）
+            float cycleProgress = (cycleTime % 0.2f) / 0.2f;
+            
+            float alpha;
+            if (cycleProgress < 0.5f)
+            {
+                // 前0.1秒：從255（1.0）減到0
+                alpha = Mathf.Lerp(1f, 0f, cycleProgress * 2f);
+            }
+            else
+            {
+                // 後0.1秒：從0加到255（1.0）
+                alpha = Mathf.Lerp(0f, 1f, (cycleProgress - 0.5f) * 2f);
+            }
+            
+            // 更新Alpha值，保持RGB不變
+            graphicsSpriteRenderer.color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+            
+            yield return null; // 每幀更新
+        }
         
-        // 等待100ms (0.1秒)
-        yield return new WaitForSeconds(0.1f);
-        
-        // 恢復原始顏色
+        // 恢復原始顏色和Alpha
         graphicsSpriteRenderer.color = originalColor;
+        invincibilityFlashCoroutine = null;
+    }
+    
+    // 延遲設置角色圖像，確保NetworkVariable已經初始化
+    private IEnumerator SetPlayerSpriteDelayed()
+    {
+        // 等待一幀，確保NetworkVariable已經同步
+        yield return null;
+        SetPlayerSprite();
+    }
+    
+    // 根據玩家身份設置不同的角色圖像
+    private void SetPlayerSprite()
+    {
+        if (graphicsSpriteRenderer == null) return;
+        
+        // 使用NetworkVariable來判斷是否是Host（所有客戶端都能看到正確的值）
+        bool isHost = isHostPlayer.Value;
+        
+        Sprite spriteToUse = isHost ? hostPlayerSprite : clientPlayerSprite;
+        
+        if (spriteToUse != null)
+        {
+            graphicsSpriteRenderer.sprite = spriteToUse;
+        }
+        else
+        {
+            Debug.LogWarning($"未設置{(isHost ? "Host" : "Client")}玩家的Sprite圖像");
+        }
     }
     
     [ServerRpc(RequireOwnership = false)]
@@ -423,6 +575,7 @@ public class NetworkPlayerController : NetworkBehaviour
         
         isDead.Value = false;
         currentHealth.Value = maxHealth;
+        invincibilityEndTime.Value = 0f;
         
         if (rb != null)
         {
@@ -478,6 +631,7 @@ public class NetworkPlayerController : NetworkBehaviour
         // 重置生命值和死亡狀態
         currentHealth.Value = maxHealth;
         isDead.Value = false;
+        invincibilityEndTime.Value = 0f;
         
         // 重置物理狀態
         if (rb != null)
@@ -608,6 +762,68 @@ public class NetworkPlayerController : NetworkBehaviour
         
         // 隱藏Win/Lose UI
         HideWinLoseUI();
+        
+        // 停止無敵閃爍（如果還在運行）
+        if (invincibilityFlashCoroutine != null)
+        {
+            StopCoroutine(invincibilityFlashCoroutine);
+            invincibilityFlashCoroutine = null;
+        }
+        
+        // 恢復原始顏色
+        if (graphicsSpriteRenderer != null)
+        {
+            Color currentColor = graphicsSpriteRenderer.color;
+            graphicsSpriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 1f);
+        }
+    }
+    
+    // 初始化愛心UI引用
+    private void InitializeHealthUI()
+    {
+        // 如果沒有在Inspector中設置，則自動查找
+        if (healthImage1 == null || healthImage2 == null || healthImage3 == null)
+        {
+            Transform canvas = transform.Find("Canvas");
+            if (canvas != null)
+            {
+                if (healthImage1 == null)
+                {
+                    Transform health1 = canvas.Find("Health");
+                    if (health1 != null)
+                    {
+                        healthImage1 = health1.gameObject;
+                    }
+                }
+                if (healthImage2 == null)
+                {
+                    Transform health2 = canvas.Find("Health(1)");
+                    if (health2 != null)
+                    {
+                        healthImage2 = health2.gameObject;
+                    }
+                }
+                if (healthImage3 == null)
+                {
+                    Transform health3 = canvas.Find("Health(2)");
+                    if (health3 != null)
+                    {
+                        healthImage3 = health3.gameObject;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 根據當前生命值更新愛心顯示
+    private void UpdateHealthUI()
+    {
+        int health = Mathf.RoundToInt(currentHealth.Value);
+        
+        // 生命值3時，顯示3張愛心
+        if (healthImage1 != null) healthImage1.SetActive(health >= 1);
+        if (healthImage2 != null) healthImage2.SetActive(health >= 2);
+        if (healthImage3 != null) healthImage3.SetActive(health >= 3);
     }
    
 }
