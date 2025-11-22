@@ -41,6 +41,7 @@ public class NetworkPlayerController : NetworkBehaviour
         NetworkVariableWritePermission.Owner);
     
     private List<SpriteRenderer> cachedRenderers = new List<SpriteRenderer>();
+    private SpriteRenderer graphicsSpriteRenderer; // Graphics子物件的SpriteRenderer
     
     private Vector2 finalMove;
     private Rigidbody2D rb;
@@ -49,10 +50,22 @@ public class NetworkPlayerController : NetworkBehaviour
     private Camera mainCam;
     private float lastUIUpdateTime = 0f;
     private const float UIUpdateInterval = 0.1f; // 每0.1秒檢查一次UI
+    
     void Awake()
     {
         isGunFlipped.OnValueChanged += OnGunFlipChanged;
         isDead.OnValueChanged += OnDeathStatusChanged;
+        
+        // 查找Graphics子物件的SpriteRenderer
+        if (graphicsTransform != null)
+        {
+            graphicsSpriteRenderer = graphicsTransform.GetComponent<SpriteRenderer>();
+            if (graphicsSpriteRenderer == null)
+            {
+                // 如果Graphics本身沒有SpriteRenderer，嘗試查找子物件
+                graphicsSpriteRenderer = graphicsTransform.GetComponentInChildren<SpriteRenderer>();
+            }
+        }
     }
 
     private void OnGunFlipChanged(bool previous, bool current)
@@ -220,6 +233,15 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
+        // 初始化Graphics的SpriteRenderer（所有客戶端都需要）
+        if (graphicsSpriteRenderer == null && graphicsTransform != null)
+        {
+            graphicsSpriteRenderer = graphicsTransform.GetComponent<SpriteRenderer>();
+            if (graphicsSpriteRenderer == null)
+            {
+                graphicsSpriteRenderer = graphicsTransform.GetComponentInChildren<SpriteRenderer>();
+            }
+        }
         
         if (IsOwner)
         {
@@ -283,7 +305,14 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         if (isDead.Value) return;
         
+        float previousHealth = currentHealth.Value;
         currentHealth.Value = Mathf.Max(0, currentHealth.Value - damage);
+        
+        // 如果受到傷害，通知所有客戶端顯示紅色閃爍效果
+        if (currentHealth.Value < previousHealth)
+        {
+            FlashRedClientRpc();
+        }
         
         if (currentHealth.Value <= 0)
         {
@@ -304,6 +333,47 @@ public class NetworkPlayerController : NetworkBehaviour
             
             // 不再重生，改為切換場景（由GameManager處理）
         }
+    }
+    
+    [ClientRpc]
+    private void FlashRedClientRpc()
+    {
+        // 在所有客戶端執行紅色閃爍效果
+        StartCoroutine(FlashRedCoroutine());
+    }
+    
+    private IEnumerator FlashRedCoroutine()
+    {
+        // 如果還沒有找到Graphics的SpriteRenderer，嘗試查找
+        if (graphicsSpriteRenderer == null)
+        {
+            if (graphicsTransform != null)
+            {
+                graphicsSpriteRenderer = graphicsTransform.GetComponent<SpriteRenderer>();
+                if (graphicsSpriteRenderer == null)
+                {
+                    graphicsSpriteRenderer = graphicsTransform.GetComponentInChildren<SpriteRenderer>();
+                }
+            }
+        }
+        
+        if (graphicsSpriteRenderer == null)
+        {
+            Debug.LogWarning("無法找到Graphics子物件的SpriteRenderer");
+            yield break;
+        }
+        
+        // 保存原始顏色
+        Color originalColor = graphicsSpriteRenderer.color;
+        
+        // 設置為紅色 (FF0000 = 255, 0, 0)
+        graphicsSpriteRenderer.color = new Color(1f, 0f, 0f, originalColor.a);
+        
+        // 等待100ms (0.1秒)
+        yield return new WaitForSeconds(0.1f);
+        
+        // 恢復原始顏色
+        graphicsSpriteRenderer.color = originalColor;
     }
     
     [ServerRpc(RequireOwnership = false)]
