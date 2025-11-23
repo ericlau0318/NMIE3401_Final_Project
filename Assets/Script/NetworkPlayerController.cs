@@ -291,6 +291,13 @@ public class NetworkPlayerController : NetworkBehaviour
         // 使用協程延遲一下，確保NetworkVariable已經初始化
         StartCoroutine(SetPlayerSpriteDelayed());
         
+        // 在服務器端，將玩家傳送到對應的SpawnPoint
+        // 使用協程延遲，確保isHostPlayer.Value已經設置
+        if (IsServer)
+        {
+            StartCoroutine(TeleportToSpawnPointDelayed());
+        }
+        
         if (IsOwner)
         {
             mainCam = GetComponentInChildren<Camera>();
@@ -508,6 +515,30 @@ public class NetworkPlayerController : NetworkBehaviour
         SetPlayerSprite();
     }
     
+    // 延遲傳送到SpawnPoint，確保isHostPlayer.Value已經設置
+    private IEnumerator TeleportToSpawnPointDelayed()
+    {
+        // 等待幾幀，確保isHostPlayer.Value已經在Start()中設置
+        yield return new WaitForSeconds(0.1f);
+        
+        // 獲取spawn位置並傳送
+        Vector3 spawnPosition = GetSpawnPosition();
+        transform.position = spawnPosition;
+        
+        // 通知客戶端同步位置
+        TeleportToSpawnPointClientRpc(spawnPosition);
+    }
+    
+    [ClientRpc]
+    private void TeleportToSpawnPointClientRpc(Vector3 spawnPosition)
+    {
+        // 在客戶端同步位置（如果不是服務器端）
+        if (!IsServer)
+        {
+            transform.position = spawnPosition;
+        }
+    }
+    
     // 根據玩家身份設置不同的角色圖像
     private void SetPlayerSprite()
     {
@@ -671,42 +702,30 @@ public class NetworkPlayerController : NetworkBehaviour
         ResetPlayerStateClientRpc(spawnPosition);
     }
     
-    // 獲取spawn位置（根據玩家索引設置不同位置）
+    // 獲取spawn位置（根據玩家類型設置不同位置：Host傳送到SpawnPoint1，Client傳送到SpawnPoint2）
     private Vector3 GetSpawnPosition()
     {
-        // 找到所有玩家並排序以確定spawn位置
-        NetworkPlayerController[] allPlayers = FindObjectsOfType<NetworkPlayerController>();
-        List<ulong> clientIds = new List<ulong>();
+        // 根據isHostPlayer來決定spawn位置
+        bool isHost = isHostPlayer.Value;
         
-        foreach (var player in allPlayers)
-        {
-            if (player != null)
-            {
-                clientIds.Add(player.OwnerClientId);
-            }
-        }
-        clientIds.Sort();
-        
-        // 確定這個玩家是玩家1還是玩家2
-        int playerIndex = clientIds.IndexOf(OwnerClientId);
-        if (playerIndex < 0) playerIndex = 0; // 如果找不到，默認為玩家1
-        
-        // 默認spawn位置：玩家1在左邊(-5, 0)，玩家2在右邊(5, 0)
-        // 如果場景中有SpawnPoint物件，使用它們的位置
+        // 查找場景中的SpawnPoint物件
         GameObject spawnPoint1 = GameObject.Find("SpawnPoint1");
         GameObject spawnPoint2 = GameObject.Find("SpawnPoint2");
         
-        if (playerIndex == 0 && spawnPoint1 != null)
+        // Host Player傳送到SpawnPoint1
+        if (isHost && spawnPoint1 != null)
         {
             return spawnPoint1.transform.position;
         }
-        else if (playerIndex == 1 && spawnPoint2 != null)
+        // Client Player傳送到SpawnPoint2
+        else if (!isHost && spawnPoint2 != null)
         {
             return spawnPoint2.transform.position;
         }
         
-        // 如果沒有找到spawn點，使用默認位置
-        float spawnX = playerIndex == 0 ? -5f : 5f;
+        // 如果沒有找到對應的spawn點，使用默認位置
+        // Host在左邊(-5, 0)，Client在右邊(5, 0)
+        float spawnX = isHost ? -5f : 5f;
         return new Vector3(spawnX, 0f, transform.position.z);
     }
     
