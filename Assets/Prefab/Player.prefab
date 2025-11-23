@@ -133,7 +133,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDrag: 0
   m_AngularDrag: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 5
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -276,7 +276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 10
-  jumpForce: 5
+  jumpForce: 23
   groundCheck: {fileID: 1214961969557685673}
   CheckRadius: 0.2
   groundLayer:
@@ -289,7 +289,7 @@ MonoBehaviour:
   graphicsTransform: {fileID: 5252215532058895220}
   gunSpriteRenderer: {fileID: 1254862650987172554}
   hostPlayerSprite: {fileID: 21300000, guid: a8f1c183a0b489a469bb28ed29eea98a, type: 3}
-  clientPlayerSprite: {fileID: 21300000, guid: 8820dddc3015ea14d96faf6240c4c47f, type: 3}
+  clientPlayerSprite: {fileID: 21300000, guid: 84f46f04dfc98b84e83699205ad2bd2a, type: 3}
   maxHealth: 3
   respawnDelay: 3
   youWinText: {fileID: 3808675407562862742}
