@@ -18,7 +18,12 @@ public class NetworkPlayerController : NetworkBehaviour
     [SerializeField] float fireRate = 0.2f;
     [SerializeField] Transform graphicsTransform;
     [SerializeField] private SpriteRenderer gunSpriteRenderer;
-    
+    [SerializeField] private AudioSource HitSound;
+    [SerializeField] private AudioSource JumpSound;
+    [SerializeField] private AudioSource ShootSound;
+    [SerializeField] private AudioSource WinSound;
+    [SerializeField] private AudioSource LoseSound;
+
     // 角色圖像（Host和Client使用不同的Sprite）
     [SerializeField] private Sprite hostPlayerSprite;
     [SerializeField] private Sprite clientPlayerSprite;
@@ -147,9 +152,13 @@ public class NetworkPlayerController : NetworkBehaviour
             // 如果本地玩家死亡，顯示 "You Lose"
             if (localPlayer.isDead.Value)
             {
-                if (localPlayer.youLoseText != null)
+                if (localPlayer.youLoseText != null && !localPlayer.youLoseText.activeSelf)
                 {
                     localPlayer.youLoseText.SetActive(true);
+                    if (localPlayer.LoseSound != null)
+                    {
+                        localPlayer.LoseSound.Play();
+                    }
                 }
                 if (localPlayer.youWinText != null)
                 {
@@ -159,9 +168,13 @@ public class NetworkPlayerController : NetworkBehaviour
             // 如果對方玩家死亡，顯示 "You Win"
             else if (otherPlayer != null && otherPlayer.isDead.Value)
             {
-                if (localPlayer.youWinText != null)
+                if (localPlayer.youWinText != null && !localPlayer.youWinText.activeSelf)
                 {
                     localPlayer.youWinText.SetActive(true);
+                    if (localPlayer.WinSound != null)
+                    {
+                        localPlayer.WinSound.Play();
+                    }
                 }
                 if (localPlayer.youLoseText != null)
                 {
@@ -239,6 +252,10 @@ public class NetworkPlayerController : NetworkBehaviour
         if (pActions.Player.Jump.IsPressed() && isGrounded)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            if (JumpSound != null)
+            {
+                JumpSound.Play();
+            }
         }
 
         if (mainCam == null)
@@ -264,6 +281,10 @@ public class NetworkPlayerController : NetworkBehaviour
         if (Mouse.current.leftButton.isPressed && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
+            if (ShootSound != null)
+            {
+                ShootSound.Play();
+            }
             ShootServerRpc();
         }
     }
@@ -382,6 +403,9 @@ public class NetworkPlayerController : NetworkBehaviour
             
             // 通知所有客戶端開始無敵閃爍效果
             StartInvincibilityFlashClientRpc();
+            
+            // 播放受傷音效
+            PlayHitSoundClientRpc();
         }
         
         if (currentHealth.Value <= 0)
@@ -416,6 +440,16 @@ public class NetworkPlayerController : NetworkBehaviour
             StopCoroutine(invincibilityFlashCoroutine);
         }
         invincibilityFlashCoroutine = StartCoroutine(InvincibilityFlashCoroutine());
+    }
+    
+    [ClientRpc]
+    private void PlayHitSoundClientRpc()
+    {
+        // 在所有客戶端播放受傷音效
+        if (HitSound != null)
+        {
+            HitSound.Play();
+        }
     }
     
     [ClientRpc]

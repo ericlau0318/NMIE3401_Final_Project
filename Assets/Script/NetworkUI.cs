@@ -8,6 +8,7 @@ public class NetworkUI : MonoBehaviour
     public GameObject MainMeun;
     public GameObject Maincamera;
     public GameObject HowToPlayPanel;
+    [SerializeField] private AudioSource shootSound; 
     public void StartServerOnClick()
     {
         NetworkManager.Singleton.StartServer();
@@ -16,6 +17,7 @@ public class NetworkUI : MonoBehaviour
 
     public void StartHostOnClick()
     {
+        shootSound.Play();
         Maincamera.SetActive(false);
         NetworkManager.Singleton.StartHost();
         Debug.Log("2");
@@ -25,6 +27,7 @@ public class NetworkUI : MonoBehaviour
 
     public void StartClientOnClick()
     {
+        shootSound.Play();
         Maincamera.SetActive(false);
         NetworkManager.Singleton.StartClient();
         MainMeun.SetActive(false);
