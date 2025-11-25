@@ -230,7 +230,7 @@ GameObject:
   - component: {fileID: 122917075}
   - component: {fileID: 122917074}
   - component: {fileID: 122917073}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0154
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -549,7 +549,7 @@ GameObject:
   - component: {fileID: 760584219}
   - component: {fileID: 760584218}
   - component: {fileID: 760584217}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0005 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -792,8 +792,8 @@ Transform:
   m_GameObject: {fileID: 764086699}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 14.97, y: -9.7, z: 0}
-  m_LocalScale: {x: 5.1099, y: 5.0817, z: 1}
+  m_LocalPosition: {x: 14.97, y: -9.34, z: 0}
+  m_LocalScale: {x: 9.26527, y: 9.214138, z: 1.8132}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -888,7 +888,7 @@ GameObject:
   - component: {fileID: 861379931}
   - component: {fileID: 861379930}
   - component: {fileID: 861379929}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0153
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -929,7 +929,7 @@ BoxCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
+    border: {x: 0.01, y: 0.049999997, z: 0, w: 0.02}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 0.18, y: 0.18}
     newSize: {x: 0.81382424, y: 0.18234746}
@@ -1057,7 +1057,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0.005699821, y: 0.16388655}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -1068,7 +1068,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.18, y: 0.18}
+  m_Size: {x: 0.26739705, y: 0.5077731}
   m_EdgeRadius: 0
 --- !u!212 &949558905
 SpriteRenderer:
@@ -1131,7 +1131,7 @@ Transform:
   m_GameObject: {fileID: 949558903}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -15.5609, y: -8.86, z: 0}
+  m_LocalPosition: {x: -27.3, y: -8.86, z: 0}
   m_LocalScale: {x: 10.261778, y: 8.0896015, z: 1.3610122}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1279,7 +1279,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0.0014955848, y: 0.12014067}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -1290,7 +1290,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.18, y: 0.18}
+  m_Size: {x: 0.15607074, y: 0.42028123}
   m_EdgeRadius: 0
 --- !u!212 &1075399577
 SpriteRenderer:
@@ -1353,8 +1353,8 @@ Transform:
   m_GameObject: {fileID: 1075399575}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.3041, y: -8.969, z: 0}
-  m_LocalScale: {x: 5.1099, y: 5.0817, z: 1}
+  m_LocalPosition: {x: 0.3041, y: -8.68, z: 0}
+  m_LocalScale: {x: 9.050246, y: 8.956683, z: 1.3624}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1426,7 +1426,7 @@ BoxCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
+    border: {x: 0.01, y: 0.049999997, z: 0, w: 0.02}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 0.18, y: 0.18}
     newSize: {x: 0.18, y: 0.18}
@@ -1602,7 +1602,7 @@ GameObject:
   - component: {fileID: 1709087166}
   - component: {fileID: 1709087165}
   - component: {fileID: 1709087167}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0006
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1732,7 +1732,7 @@ GameObject:
   - component: {fileID: 1902890794}
   - component: {fileID: 1902890793}
   - component: {fileID: 1902890792}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0153 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1773,7 +1773,7 @@ BoxCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
+    border: {x: 0.01, y: 0.049999997, z: 0, w: 0.02}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 0.18, y: 0.18}
     newSize: {x: 0.18, y: 0.18}
@@ -2085,7 +2085,7 @@ GameObject:
   - component: {fileID: 2026742433}
   - component: {fileID: 2026742432}
   - component: {fileID: 2026742434}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0010
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2215,7 +2215,7 @@ GameObject:
   - component: {fileID: 2119774444}
   - component: {fileID: 2119774443}
   - component: {fileID: 2119774442}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: tile_0005
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2401,7 +2401,7 @@ BoxCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
+    border: {x: 0.01, y: 0.049999997, z: 0, w: 0.02}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 0.18, y: 0.18}
     newSize: {x: 0.18, y: 0.18}
