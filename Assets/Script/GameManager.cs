@@ -9,14 +9,14 @@ public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
     
-    [SerializeField] private Text scoreText; // 場景中的Score文字物件
-    [SerializeField] private string nextSceneName = "Level2"; // 下一個場景名稱
-    [SerializeField] private float sceneTransitionDelay = 2f; // 場景切換延遲時間（秒）
+    [SerializeField] private Text scoreText; // Reference to the Score text UI in the scene
+    [SerializeField] private string nextSceneName = "Level2"; // Name of the next level to load
+    [SerializeField] private float sceneTransitionDelay = 2f; // How long to wait before switching scenes (in seconds)
     
-    private bool isTransitioning = false; // 是否正在切換場景
-    private bool rewardWinTextShown = false; // 是否已經顯示過reward場景的勝利文字
+    private bool isTransitioning = false; // Are we currently switching scenes?
+    private bool rewardWinTextShown = false; // Did we already show the winner text on the reward screen?
     
-    // 玩家1和玩家2的分數（使用ClientId來區分）
+    // Player 1 and Player 2 scores (using ClientId to tell them apart)
     private NetworkVariable<int> player1Score = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
@@ -32,22 +32,22 @@ public class GameManager : NetworkBehaviour
         if (Instance == null)
         {
             Instance = this;
-            // 確保GameManager在場景切換時不被銷毀，以保持分數
+            // Keep GameManager alive when loading new scenes so we don't lose the score
             DontDestroyOnLoad(gameObject);
         }
         else
         {
-            // 如果Instance已經存在（從上一個場景保持的），更新它的nextSceneName
+            // If there's already a GameManager from the previous scene, update its next level name
             if (Instance != this && !string.IsNullOrEmpty(nextSceneName))
             {
                 Instance.nextSceneName = nextSceneName;
-                Debug.Log($"更新Instance的nextSceneName為: {nextSceneName}");
+                Debug.Log("Next scene is now set to " + nextSceneName);
             }
             Destroy(gameObject);
             return;
         }
         
-        // 訂閱分數變化事件
+        // Listen for when the score changes
         player1Score.OnValueChanged += OnScoreChanged;
         player2Score.OnValueChanged += OnScoreChanged;
     }
@@ -62,7 +62,7 @@ public class GameManager : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
-        // 如果沒有在Inspector中設置，自動查找Score文字物件
+        // If we didn't set the score text in Inspector, try to find it automatically
         if (scoreText == null)
         {
             GameObject scoreObj = GameObject.Find("Score");
@@ -72,14 +72,14 @@ public class GameManager : NetworkBehaviour
             }
         }
         
-        // 初始化顯示
+        // Show the starting score
         UpdateScoreDisplay();
         
-        // 重置場景切換標記（當重新生成時）
+        // Reset the scene transition flag (when we respawn)
         isTransitioning = false;
         
-        // 訂閱場景加載事件，以便在場景切換後重置玩家狀態和更新nextSceneName
-        // 注意：場景事件應該在所有客戶端訂閱，而不只是服務器端
+        // Listen for scene loading events so we can reset players and update the next level name
+        // Note: All clients need to listen to scene events, not just the server
         if (NetworkManager != null && NetworkManager.SceneManager != null)
         {
             NetworkManager.SceneManager.OnLoadEventCompleted += OnSceneLoadCompleted;
@@ -89,7 +89,7 @@ public class GameManager : NetworkBehaviour
     
     public override void OnNetworkDespawn()
     {
-        // 取消訂閱場景事件
+        // Stop listening to scene events when this object is removed
         if (NetworkManager != null && NetworkManager.SceneManager != null)
         {
             NetworkManager.SceneManager.OnLoadEventCompleted -= OnSceneLoadCompleted;
@@ -101,8 +101,8 @@ public class GameManager : NetworkBehaviour
     
     private void OnSceneEvent(Unity.Netcode.SceneEvent sceneEvent)
     {
-        // 當場景開始加載時，立即查找新場景中的GameManager並讀取nextSceneName
-        // 這樣可以在新場景的GameManager被銷毀之前讀取它的nextSceneName
+        // When a scene starts loading, grab the next level name from the new scene's GameManager
+        // We need to do this before the new GameManager gets destroyed
         if (sceneEvent.SceneEventType == Unity.Netcode.SceneEventType.Load)
         {
             StartCoroutine(UpdateNextSceneNameOnLoad(sceneEvent.SceneName));
@@ -111,21 +111,21 @@ public class GameManager : NetworkBehaviour
     
     private IEnumerator UpdateNextSceneNameOnLoad(string sceneName)
     {
-        // 等待一幀，確保新場景的GameManager已經被創建
+        // Wait one frame to make sure the new scene's GameManager has been created
         yield return null;
         
-        // 查找新場景中的GameManager
+        // Look for GameManagers in the new scene
         GameManager[] allGameManagers = FindObjectsOfType<GameManager>();
         foreach (var gm in allGameManagers)
         {
             if (gm != null && gm != this)
             {
-                // 從新場景的GameManager中讀取nextSceneName（即使它會被銷毀）
+                // Grab the next level name from the new scene's GameManager (before it gets destroyed)
                 string newSceneName = gm.nextSceneName;
                 if (!string.IsNullOrEmpty(newSceneName))
                 {
                     nextSceneName = newSceneName;
-                    Debug.Log($"場景 {sceneName} 開始加載，更新nextSceneName為: {nextSceneName}");
+                    Debug.Log("Scene " + sceneName + " is loading, next level will be " + nextSceneName);
                     break;
                 }
             }
@@ -134,32 +134,32 @@ public class GameManager : NetworkBehaviour
     
     private void OnSceneLoadCompleted(string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode, System.Collections.Generic.List<ulong> clientsCompleted, System.Collections.Generic.List<ulong> clientsTimedOut)
     {
-        Debug.Log($"場景加載完成: {sceneName} (客戶端: {NetworkManager.LocalClientId}, 是否服務器: {IsServer})");
+        Debug.Log("Scene " + sceneName + " loaded successfully on client " + NetworkManager.LocalClientId);
         
-        // 重置場景切換標記（重要！因為GameManager使用DontDestroyOnLoad，不會重新spawn）
+        // Reset the scene transition flag (important! GameManager uses DontDestroyOnLoad so it won't respawn)
         isTransitioning = false;
-        Debug.Log($"重置isTransitioning為false，允許新的場景切換 (客戶端: {NetworkManager.LocalClientId})");
+        Debug.Log("Ready for new scene transitions now");
         
-        // 如果是reward場景，顯示勝利文字
+        // If we're on the reward screen, show who won
         if (sceneName == "reward")
         {
-            rewardWinTextShown = false; // 重置標誌，允許新場景顯示勝利文字
+            rewardWinTextShown = false; // Reset the flag so we can show the winner text
             StartCoroutine(UpdateRewardSceneWinText());
         }
         else
         {
-            // 場景加載完成後，重置所有玩家的狀態（只在服務器端執行）
+            // After loading a level, reset all players (server only)
             if (IsServer)
             {
-                // 等待一小段時間確保所有玩家都已生成
+                // Wait a bit to make sure all players have spawned
                 StartCoroutine(DelayedResetPlayersState());
             }
         }
         
-        // 更新Score文字物件引用（新場景可能有新的Score物件）- 所有客戶端都需要執行
+        // Update the Score text reference (new scene might have a new Score object) - all clients need this
         StartCoroutine(UpdateScoreTextAfterSceneLoad());
         
-        // 更新nextSceneName（從新場景中的GameManager讀取，如果存在）- 所有客戶端都需要執行
+        // Update the next level name (grab it from the new scene's GameManager if it exists) - all clients need this
         StartCoroutine(UpdateNextSceneNameAfterSceneLoad());
     }
     
@@ -168,23 +168,23 @@ public class GameManager : NetworkBehaviour
         GameObject p1WinObj = null;
         GameObject p2WinObj = null;
         
-        // 等待場景完全加載，多次嘗試查找（因為GameObject.Find找不到inactive的物件）
+        // Wait for the scene to fully load, try multiple times (GameObject.Find can't find inactive objects)
         for (int i = 0; i < 10; i++)
         {
             yield return new WaitForSeconds(0.1f);
             
-            // 方法1: 嘗試用GameObject.Find（只能找到active的物件）
+            // Method 1: Try GameObject.Find (only finds active objects)
             p1WinObj = GameObject.Find("P1Wintxt");
             p2WinObj = GameObject.Find("P2Wintxt");
             
-            // 方法2: 如果Find找不到，從Canvas查找所有子物件（包括inactive的）
+            // Method 2: If Find didn't work, search all children of Canvas (including inactive ones)
             if (p1WinObj == null || p2WinObj == null)
             {
                 Canvas canvas = FindObjectOfType<Canvas>();
                 if (canvas != null)
                 {
-                    // 遞歸查找Canvas下的所有子物件（包括inactive的）
-                    Transform[] allChildren = canvas.GetComponentsInChildren<Transform>(true); // true = 包括inactive的
+                    // Search all children under Canvas (including inactive ones)
+                    Transform[] allChildren = canvas.GetComponentsInChildren<Transform>(true); // true = include inactive objects
                     foreach (Transform child in allChildren)
                     {
                         if (child.name == "P1Wintxt" && p1WinObj == null)
@@ -199,13 +199,13 @@ public class GameManager : NetworkBehaviour
                 }
             }
             
-            // 方法3: 如果還是找不到，使用Resources.FindObjectsOfTypeAll（包括所有物件，包括inactive和場景外的）
+            // Method 3: If still not found, use Resources.FindObjectsOfTypeAll (finds all objects including inactive and out-of-scene)
             if (p1WinObj == null || p2WinObj == null)
             {
                 GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
                 foreach (GameObject obj in allObjects)
                 {
-                    // 只檢查當前場景中的物件
+                    // Only check objects in the current scene
                     if (obj != null && obj.scene.isLoaded && obj.scene.name == "reward")
                     {
                         if (obj.name == "P1Wintxt" && p1WinObj == null)
@@ -222,84 +222,84 @@ public class GameManager : NetworkBehaviour
             
             if (p1WinObj != null && p2WinObj != null)
             {
-                Debug.Log($"成功找到勝利文字物件: P1Wintxt={p1WinObj != null}, P2Wintxt={p2WinObj != null} (嘗試 {i+1}/10)");
+                Debug.Log("Found the winner text objects on attempt " + (i+1));
                 break;
             }
         }
         
         if (p1WinObj == null || p2WinObj == null)
         {
-            Debug.LogError($"無法找到勝利文字物件: P1Wintxt={p1WinObj != null}, P2Wintxt={p2WinObj != null}");
+            Debug.LogError("Could not find winner text objects");
             yield break;
         }
         
-        // 獲取分數
+        // Get the current scores
         int p1Score = player1Score.Value;
         int p2Score = player2Score.Value;
         
-        Debug.Log($"Reward場景: P1分數={p1Score}, P2分數={p2Score}");
+        Debug.Log("Final scores are P1 " + p1Score + " and P2 " + p2Score);
         
-        // 根據比分顯示勝利文字
+        // Show the winner based on the scores
         if (p1Score > p2Score)
         {
-            // P1勝利
+            // Player 1 wins!
             p1WinObj.SetActive(true);
             p2WinObj.SetActive(false);
-            rewardWinTextShown = true; // 標記為已顯示
-            Debug.Log($"✓ 顯示P1勝利 (P1:{p1Score} > P2:{p2Score})");
+            rewardWinTextShown = true;
+            Debug.Log("Player 1 wins with " + p1Score + " points");
         }
         else if (p2Score > p1Score)
         {
-            // P2勝利
+            // Player 2 wins!
             p1WinObj.SetActive(false);
             p2WinObj.SetActive(true);
-            rewardWinTextShown = true; // 標記為已顯示
-            Debug.Log($"✓ 顯示P2勝利 (P2:{p2Score} > P1:{p1Score})");
+            rewardWinTextShown = true;
+            Debug.Log("Player 2 wins with " + p2Score + " points");
         }
         else
         {
-            // 平局（可以選擇顯示兩個或都不顯示）
+            // It's a tie!
             p1WinObj.SetActive(false);
             p2WinObj.SetActive(false);
-            rewardWinTextShown = true; // 標記為已處理
-            Debug.Log($"平局 (P1:{p1Score} = P2:{p2Score})");
+            rewardWinTextShown = true;
+            Debug.Log("It's a tie at " + p1Score + " points each");
         }
     }
     
     private IEnumerator UpdateNextSceneNameAfterSceneLoad()
     {
-        // 等待場景完全加載，確保所有GameManager都已初始化
-        // 多次嘗試查找新場景中的GameManager（因為場景加載可能需要時間）
+        // Wait for the scene to fully load and make sure all GameManagers are initialized
+        // Try multiple times to find the new scene's GameManager (scene loading takes time)
         for (int i = 0; i < 10; i++)
         {
             yield return new WaitForSeconds(0.1f);
             
-            // 查找新場景中的GameManager（可能有多個，但只有一個會被保留）
-            // 注意：新場景的GameManager會在Awake時被銷毀，但我們可以在它被銷毀前讀取nextSceneName
+            // Look for GameManagers in the new scene (might be multiple, but only one stays)
+            // Note: The new scene's GameManager gets destroyed in Awake, but we can grab nextSceneName before that
             GameManager[] allGameManagers = FindObjectsOfType<GameManager>();
             foreach (var gm in allGameManagers)
             {
                 if (gm != null && gm != this)
                 {
-                    // 從新場景的GameManager中讀取nextSceneName（即使它會被銷毀）
+                    // Grab the next level name from the new scene's GameManager (before it gets destroyed)
                     string newSceneName = gm.nextSceneName;
                     if (!string.IsNullOrEmpty(newSceneName))
                     {
                         nextSceneName = newSceneName;
-                        Debug.Log($"場景切換完成，更新nextSceneName為: {nextSceneName} (客戶端: {NetworkManager.LocalClientId})");
-                        yield break; // 成功找到後退出
+                        Debug.Log("Next level updated to " + nextSceneName);
+                        yield break; // Success! Exit the loop
                     }
                 }
             }
         }
         
-        // 如果還是找不到，輸出警告
-        Debug.LogWarning($"場景加載完成後無法從新場景的GameManager讀取nextSceneName，當前nextSceneName為: {nextSceneName} (客戶端: {NetworkManager.LocalClientId})");
+        // If we still couldn't find it, show a warning
+        Debug.LogWarning("Could not find next level name, keeping current one as " + nextSceneName);
     }
     
     private IEnumerator DelayedResetPlayersState()
     {
-        // 等待0.5秒確保所有玩家都已生成
+        // Wait 0.5 seconds to make sure all players have spawned
         yield return new WaitForSeconds(0.5f);
         
         ResetAllPlayersStateClientRpc();
@@ -307,12 +307,12 @@ public class GameManager : NetworkBehaviour
     
     private IEnumerator UpdateScoreTextAfterSceneLoad()
     {
-        // 等待場景完全加載，多次嘗試查找Score物件（因為場景加載可能需要時間）
+        // Wait for scene to fully load, try multiple times to find Score object (scene loading takes time)
         for (int i = 0; i < 10; i++)
         {
             yield return new WaitForSeconds(0.1f);
             
-            // 重新查找Score文字物件
+            // Try to find the Score text object again
             GameObject scoreObj = GameObject.Find("Score");
             if (scoreObj != null)
             {
@@ -320,23 +320,23 @@ public class GameManager : NetworkBehaviour
                 if (scoreText != null)
                 {
                     UpdateScoreDisplay();
-                    Debug.Log($"場景加載完成，成功更新Score文字物件引用 (客戶端: {NetworkManager.LocalClientId})");
+                    Debug.Log("Score display found and updated");
                     break;
                 }
             }
         }
         
-        // 如果還是找不到，輸出警告
+        // If we still couldn't find it, show a warning
         if (scoreText == null)
         {
-            Debug.LogWarning($"場景加載完成後無法找到Score文字物件 (客戶端: {NetworkManager.LocalClientId})");
+            Debug.LogWarning("Could not find score text in this scene");
         }
     }
     
     [ClientRpc]
     private void ResetAllPlayersStateClientRpc()
     {
-        // 找到所有玩家並重置狀態
+        // Find all players and reset their states
         NetworkPlayerController[] allPlayers = FindObjectsOfType<NetworkPlayerController>();
         foreach (var player in allPlayers)
         {
@@ -365,7 +365,7 @@ public class GameManager : NetworkBehaviour
     
     private void Start()
     {
-        // 如果沒有在Inspector中設置，自動查找Score文字物件
+        // If we didn't set the score text in Inspector, try to find it automatically
         if (scoreText == null)
         {
             GameObject scoreObj = GameObject.Find("Score");
@@ -375,19 +375,19 @@ public class GameManager : NetworkBehaviour
             }
         }
         
-        // 初始化顯示
+        // Show the starting score
         if (scoreText != null)
         {
             UpdateScoreDisplay();
         }
         
-        // 檢查當前場景是否為reward場景（確保在Play Mode和Build中都能正確處理）
-        // 這對於Play Mode特別重要，因為場景加載事件的觸發時機可能不同
+        // Check if we're on the reward screen (works in both Play Mode and Build)
+        // This is especially important for Play Mode since scene loading events might fire at different times
         string currentSceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (currentSceneName == "reward" && !rewardWinTextShown)
         {
-            Debug.Log($"Start()中檢測到reward場景，開始更新勝利文字 (客戶端: {NetworkManager?.LocalClientId}, 是否服務器: {IsServer}, IsSpawned: {IsSpawned})");
-            rewardWinTextShown = false; // 重置標誌
+            Debug.Log("We are on reward scene, showing who won");
+            rewardWinTextShown = false; // Reset the flag
             StartCoroutine(UpdateRewardSceneWinText());
         }
     }
@@ -395,12 +395,12 @@ public class GameManager : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void AddScoreServerRpc(ulong deadPlayerClientId)
     {
-        // 找到所有玩家
+        // Find all players in the game
         NetworkPlayerController[] allPlayers = FindObjectsOfType<NetworkPlayerController>();
         
         if (allPlayers.Length < 2) return;
         
-        // 找到死亡的玩家和對方玩家
+        // Figure out who died and who's still alive
         NetworkPlayerController deadPlayer = null;
         NetworkPlayerController otherPlayer = null;
         
@@ -418,10 +418,10 @@ public class GameManager : NetworkBehaviour
             }
         }
         
-        // 如果找到兩個玩家，增加對方玩家的分數
+        // If we found both players, give the winner a point
         if (deadPlayer != null && otherPlayer != null)
         {
-            // 獲取兩個玩家的ClientId並排序
+            // Get both players' ClientIds and sort them
             List<ulong> clientIds = new List<ulong>();
             foreach (var player in allPlayers)
             {
@@ -432,44 +432,46 @@ public class GameManager : NetworkBehaviour
             }
             clientIds.Sort();
             
-            // 較小的ClientId是玩家1，較大的是玩家2
+            // Smaller ClientId is Player 1, larger is Player 2
             ulong p1ClientId = clientIds[0];
             ulong p2ClientId = clientIds.Count > 1 ? clientIds[1] : p1ClientId;
             
-            // 增加對方玩家的分數
+            // Add a point to the winner
             if (otherPlayer.OwnerClientId == p1ClientId)
             {
                 player1Score.Value++;
+                Debug.Log("Player 1 scored a point, now at " + player1Score.Value);
             }
             else if (otherPlayer.OwnerClientId == p2ClientId)
             {
                 player2Score.Value++;
+                Debug.Log("Player 2 scored a point, now at " + player2Score.Value);
             }
         }
     }
     
-    // 公共方法：當玩家死亡時調用
+    // Public method: Called when a player dies
     public void OnPlayerDeath(ulong deadPlayerClientId)
     {
-        Debug.Log($"[OnPlayerDeath] 玩家 {deadPlayerClientId} 死亡，是否服務器: {IsServer}, isTransitioning: {isTransitioning}");
+        Debug.Log("Player " + deadPlayerClientId + " just died");
         
         if (!IsServer)
         {
-            Debug.LogWarning("OnPlayerDeath只能在服務器端調用");
+            Debug.LogWarning("This can only be called on the server");
             return;
         }
         
         if (isTransitioning)
         {
-            Debug.LogWarning($"場景正在切換中(isTransitioning={isTransitioning})，忽略死亡事件");
+            Debug.LogWarning("Already switching scenes, ignoring this death");
             return;
         }
         
-        // 在切換場景前，根據當前場景名稱確定下一個場景（使用與Level1相同的方法）
+        // Before switching scenes, figure out what the next scene should be based on current scene
         string currentSceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        Debug.Log($"當前場景: {currentSceneName}, 當前nextSceneName: {nextSceneName}");
+        Debug.Log("Current scene is " + currentSceneName);
         
-        // 如果nextSceneName為空或與當前場景相同，根據場景名稱設定下一個場景
+        // If nextSceneName is empty or the same as current scene, set it based on the scene name
         if (string.IsNullOrEmpty(nextSceneName) || nextSceneName == currentSceneName)
         {
             if (currentSceneName == "Level1")
@@ -482,66 +484,66 @@ public class GameManager : NetworkBehaviour
             }
             else if (currentSceneName == "Level3")
             {
-                nextSceneName = "Level3"; // 或者設定為其他場景
+                nextSceneName = "Level3"; // Or set to another scene if you want
             }
-            Debug.Log($"根據當前場景 {currentSceneName} 設定nextSceneName為: {nextSceneName}");
+            Debug.Log("Next scene will be " + nextSceneName);
         }
         
-        // 再次嘗試從場景中的GameManager讀取nextSceneName（如果有的話）
+        // Try one more time to grab nextSceneName from any GameManager in the scene
         GameManager[] allGameManagers = FindObjectsOfType<GameManager>();
         foreach (var gm in allGameManagers)
         {
             if (gm != null && gm != this && !string.IsNullOrEmpty(gm.nextSceneName))
             {
                 nextSceneName = gm.nextSceneName;
-                Debug.Log($"從場景中的GameManager更新nextSceneName為: {nextSceneName}");
+                Debug.Log("Found next scene info, will go to " + nextSceneName);
                 break;
             }
         }
         
-        Debug.Log($"玩家 {deadPlayerClientId} 死亡，準備切換到場景: {nextSceneName}");
+        Debug.Log("Getting ready to load " + nextSceneName);
         
-        // 更新分數
+        // Update the score
         AddScoreServerRpc(deadPlayerClientId);
         
-        // 開始場景切換
+        // Start the scene transition
         StartCoroutine(TransitionToNextScene());
     }
     
     private IEnumerator TransitionToNextScene()
     {
-        // 防止重複切換
+        // Prevent switching multiple times
         isTransitioning = true;
         
-        // 等待一段時間（可以顯示勝利/失敗訊息）
+        // Wait a bit (can show win/lose messages during this time)
         yield return new WaitForSeconds(sceneTransitionDelay);
         
-        // 檢查nextSceneName是否有效
+        // Make sure we have a valid scene to load
         if (string.IsNullOrEmpty(nextSceneName))
         {
-            Debug.LogError("nextSceneName為空，無法切換場景！");
+            Debug.LogError("Next scene name is empty, cannot switch scenes");
             isTransitioning = false;
             yield break;
         }
         
-        Debug.Log($"開始切換場景到: {nextSceneName}");
+        Debug.Log("Starting to load " + nextSceneName + " now");
         
-        // 切換場景
+        // Load the next scene
         if (IsServer && NetworkManager != null && NetworkManager.SceneManager != null)
         {
-            // 使用NetworkManager的SceneManager來加載場景（會同步到所有客戶端）
+            // Use NetworkManager's SceneManager to load the scene (syncs to all clients)
             NetworkManager.SceneManager.LoadScene(nextSceneName, LoadSceneMode.Single);
-            Debug.Log($"已請求加載場景: {nextSceneName}");
+            Debug.Log("Scene load request sent for " + nextSceneName);
         }
         else if (IsServer)
         {
-            // 如果NetworkSceneManager不可用，使用普通SceneManager（不推薦，但作為備用）
-            Debug.LogWarning("NetworkSceneManager不可用，使用普通SceneManager切換場景");
+            // If NetworkSceneManager isn't available, use regular SceneManager (not recommended, but backup option)
+            Debug.LogWarning("NetworkSceneManager not available, using regular scene manager");
             SceneManager.LoadScene(nextSceneName);
         }
         else
         {
-            Debug.LogError("不是服務器，無法切換場景");
+            Debug.LogError("Only the server can switch scenes");
             isTransitioning = false;
         }
     }
